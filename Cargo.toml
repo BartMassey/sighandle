@@ -1,0 +1,17 @@
+[package]
+name = "sighandle"
+version = "0.1.0"
+authors = ["Bart Massey <bart.massey@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+libc = "0.2.81"
+lazy_static = "1.4.0"
+parking_lot = "0.11.1"
+crossbeam-queue = "0.3.1"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
