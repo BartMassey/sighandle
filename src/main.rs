@@ -1,6 +1,7 @@
+use std::process::abort;
 use std::ptr;
 use std::mem::MaybeUninit;
-use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crossbeam_queue::ArrayQueue;
 use libc::{sigaction, siginfo_t, ucontext_t,
@@ -14,16 +15,16 @@ unsafe fn handle_sigint(
     siginfo: * const siginfo_t,
     _sigcontext: * const ucontext_t,
 ) {
-    let pid = siginfo.as_ref().unwrap().si_pid();
+    let pid = siginfo.as_ref().unwrap_or_else(|| abort()).si_pid();
     (*SIGQUEUE).push(pid).unwrap_or_else(|_| {
-        let _ = MISSES.fetch_add(1, SeqCst);
+        let _ = MISSES.fetch_add(1, Ordering::SeqCst);
     });
 }
 
 fn install_handler() {
     unsafe {
         // Set up pid queue.
-        SIGQUEUE = Box::leak(Box::new(ArrayQueue::new(2)));
+        SIGQUEUE = Box::leak(Box::new(ArrayQueue::new(1)));
 
         // Set up signal handler.
         // https://stackoverflow.com/a/34377103/364875
@@ -48,7 +49,7 @@ fn main() {
     for _ in 0..(1u64 << 63) {
         let pid = unsafe { (*SIGQUEUE).pop() };
         if let Some(pid) = pid {
-            let misses = unsafe { MISSES.load(SeqCst) };
+            let misses = unsafe { MISSES.load(Ordering::Relaxed) };
             println!("{} ({})", pid, misses);
         }
     }
